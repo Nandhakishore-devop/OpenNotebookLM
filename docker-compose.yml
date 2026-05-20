@@ -69,7 +69,10 @@ services:
       - MINIO_ROOT_USER=sourcemind
       - MINIO_ROOT_PASSWORD=sourcemind_password
       - MINIO_SECURE=false
+<<<<<<< HEAD
 
+=======
+>>>>>>> d90ab0b (commit)
       - OLLAMA_BASE_URL=http://host.docker.internal:11434
       - BACKEND_CORS_ORIGINS=["http://localhost:3000","http://127.0.0.1:3000","http://localhost:8000","http://127.0.0.1:8000"]
     depends_on:
