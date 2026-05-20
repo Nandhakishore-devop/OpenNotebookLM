@@ -1,5 +1,5 @@
 import uuid
-from sqlalchemy import Column, String, DateTime, ForeignKey, Enum
+from sqlalchemy import Column, String, DateTime, ForeignKey, Enum, JSON
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
@@ -9,8 +9,8 @@ from app.db.database import Base
 class DocumentStatus(str, enum.Enum):
     pending = "pending"
     processing = "processing"
-    done = "done"
-    error = "error"
+    ready = "ready"
+    failed = "failed"
 
 class Document(Base):
     __tablename__ = "documents"
@@ -21,6 +21,7 @@ class Document(Base):
     file_path = Column(String, nullable=False)
     file_type = Column(String, nullable=False)
     status = Column(Enum(DocumentStatus), default=DocumentStatus.pending)
+    meta_data = Column(JSON, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     # Relationships

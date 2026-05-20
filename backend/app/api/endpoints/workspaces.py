@@ -18,7 +18,8 @@ async def read_workspaces(
     """Retrieve workspaces for current user."""
     stmt = select(Workspace).where(Workspace.owner_id == current_user.id)
     result = await db.execute(stmt)
-    return result.scalars().all()
+    workspaces = result.scalars().all()
+    return workspaces
 
 @router.post("/", response_model=WorkspaceSchema, status_code=status.HTTP_201_CREATED)
 async def create_workspace(
@@ -55,7 +56,7 @@ async def delete_workspace(
     workspace_id: str,
     db: AsyncSession = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user)
-) -> Any:
+) -> None:
     """Delete a workspace."""
     stmt = select(Workspace).where(Workspace.id == workspace_id, Workspace.owner_id == current_user.id)
     result = await db.execute(stmt)

@@ -1,6 +1,6 @@
 import uuid
 from typing import Any, List
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
@@ -20,6 +20,7 @@ MINIO_BUCKET = "sourcemind-documents"
 async def upload_document(
     notebook_id: str = Form(...),
     file: UploadFile = File(...),
+    background_tasks: BackgroundTasks = BackgroundTasks(),
     db: AsyncSession = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user)
 ) -> Any:
@@ -66,13 +67,32 @@ async def upload_document(
     await db.commit()
     await db.refresh(document)
     
-    # Kick off Celery task here to parse and chunk the document!
-    ingest_document_task.delay(
-        document_id=str(document.id),
-        file_path=document.file_path,
-        file_type=file_ext,
-        notebook_id=str(notebook_id)
-    )
+    # Run ingestion asynchronously in FastAPI BackgroundTasks
+    async def run_ingestion_background():
+        from app.db.database import AsyncSessionLocal
+        from app.services.ingestion_pipeline import run_pipeline
+        from app.models.document import DocumentStatus
+        
+        async with AsyncSessionLocal() as session:
+            try:
+                await run_pipeline(
+                    document_id=str(document.id),
+                    file_path=document.file_path,
+                    file_type=file_ext,
+                    notebook_id=str(notebook_id),
+                    db=session
+                )
+            except Exception as e:
+                # Fallback to failed status if ingestion error occurs
+                stmt_err = select(Document).where(Document.id == document.id)
+                res_err = await session.execute(stmt_err)
+                doc_err = res_err.scalars().first()
+                if doc_err:
+                    doc_err.status = DocumentStatus.failed
+                    doc_err.meta_data = {"error": str(e)}
+                    await session.commit()
+    
+    background_tasks.add_task(run_ingestion_background)
     
     return document
 

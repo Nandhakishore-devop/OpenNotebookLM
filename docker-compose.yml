@@ -8,7 +8,7 @@ services:
       POSTGRES_PASSWORD: password
       POSTGRES_DB: sourcemind
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
@@ -44,6 +44,70 @@ services:
       - "9001:9001"
     volumes:
       - minio_data:/data
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: sourcemind_backend
+    restart: always
+    ports:
+      - "8000:8000"
+    environment:
+      - SECRET_KEY=supersecretkey_change_in_production
+      - ALGORITHM=HS256
+      - ENVIRONMENT=production
+      - POSTGRES_SERVER=db
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=sourcemind
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=sourcemind
+      - REDIS_URL=redis://redis:6379/0
+      - QDRANT_HOST=qdrant
+      - QDRANT_PORT=6333
+      - MINIO_URL=minio:9000
+      - MINIO_ROOT_USER=sourcemind
+      - MINIO_ROOT_PASSWORD=sourcemind_password
+      - MINIO_SECURE=false
+
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434
+      - BACKEND_CORS_ORIGINS=["http://localhost:3000","http://127.0.0.1:3000","http://localhost:8000","http://127.0.0.1:8000"]
+    depends_on:
+      - db
+      - redis
+      - qdrant
+      - minio
+
+  celery-worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: sourcemind_celery_worker
+    restart: always
+    command: celery -A app.worker.celery_app worker --loglevel=info --pool=threads
+    environment:
+      - SECRET_KEY=supersecretkey_change_in_production
+      - ALGORITHM=HS256
+      - ENVIRONMENT=production
+      - POSTGRES_SERVER=db
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=sourcemind
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=sourcemind
+      - REDIS_URL=redis://redis:6379/0
+      - QDRANT_HOST=qdrant
+      - QDRANT_PORT=6333
+      - MINIO_URL=minio:9000
+      - MINIO_ROOT_USER=sourcemind
+      - MINIO_ROOT_PASSWORD=sourcemind_password
+      - MINIO_SECURE=false
+
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434
+    depends_on:
+      - redis
+      - db
+      - qdrant
+      - minio
 
 volumes:
   postgres_data:

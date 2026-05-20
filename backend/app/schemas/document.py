@@ -21,6 +21,7 @@ class DocumentInDBBase(DocumentBase):
     file_path: str
     file_type: str
     status: DocumentStatus
+    meta_data: Optional[dict] = None
     created_at: datetime
 
     model_config = {"from_attributes": True}

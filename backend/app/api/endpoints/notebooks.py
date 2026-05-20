@@ -55,7 +55,7 @@ async def delete_notebook(
     notebook_id: str,
     db: AsyncSession = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user)
-) -> Any:
+) -> None:
     """Delete a notebook."""
     # Join with Workspace to verify ownership
     stmt = select(Notebook, Workspace).join(Workspace).where(
@@ -67,6 +67,15 @@ async def delete_notebook(
     if not row:
         raise HTTPException(status_code=404, detail="Notebook not found")
     
+    # Clean vectors in Qdrant first
+    from app.storage.vector_storage import vector_storage
+    try:
+        vector_storage.delete_notebook_vectors(notebook_id=notebook_id)
+    except Exception as e:
+        # Log error but continue database deletion
+        import logging
+        logging.getLogger(__name__).error(f"Failed to delete Qdrant vectors for notebook {notebook_id}: {e}")
+
     notebook = row[0]
     await db.delete(notebook)
     await db.commit()

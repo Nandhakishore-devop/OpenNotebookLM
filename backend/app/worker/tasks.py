@@ -1,31 +1,45 @@
 import asyncio
+import logging
 from app.worker.celery_app import celery_app
-from app.rag.ingestion import process_document
+from app.services import run_pipeline
 from app.db.database import AsyncSessionLocal
 from app.models.document import Document, DocumentStatus
 from sqlalchemy.future import select
 
+logger = logging.getLogger(__name__)
+
 @celery_app.task(name="app.worker.tasks.ingest_document")
 def ingest_document_task(document_id: str, file_path: str, file_type: str, notebook_id: str):
     """
-    Celery task to ingest a document. Runs synchronously, but calls async DB if needed.
+    Celery task to run the complete ingestion pipeline on a document.
     """
     try:
-        # Run the ingestion pipeline (CPU intensive)
-        process_document(document_id, file_path, file_type, notebook_id)
+        logger.info(f"Celery task triggered for document {document_id}")
         
-        # Update document status to done
-        asyncio.run(_update_document_status(document_id, DocumentStatus.done))
+        async def _run():
+            async with AsyncSessionLocal() as session:
+                await run_pipeline(
+                    document_id=document_id,
+                    file_path=file_path,
+                    file_type=file_type,
+                    notebook_id=notebook_id,
+                    db=session
+                )
+                
+        asyncio.run(_run())
+        logger.info(f"Celery task completed successfully for document {document_id}")
     except Exception as e:
-        print(f"Error processing document {document_id}: {e}")
-        # Update document status to error
-        asyncio.run(_update_document_status(document_id, DocumentStatus.error))
+        logger.error(f"Celery task failed for document {document_id}: {e}", exc_info=True)
+        # Update status to failed in case run_pipeline failed before updating it
+        asyncio.run(_update_document_status(document_id, DocumentStatus.failed, str(e)))
 
-async def _update_document_status(document_id: str, status: DocumentStatus):
+async def _update_document_status(document_id: str, status: DocumentStatus, error_msg: str):
     async with AsyncSessionLocal() as session:
         stmt = select(Document).where(Document.id == document_id)
         result = await session.execute(stmt)
         doc = result.scalars().first()
         if doc:
             doc.status = status
+            doc.meta_data = {"error": error_msg}
             await session.commit()
+

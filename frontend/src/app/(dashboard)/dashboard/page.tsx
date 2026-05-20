@@ -14,14 +14,17 @@ import { fetchNotebooks, fetchDocuments, Notebook } from "@/lib/api";
 
 export default function DashboardPage() {
   const [mounted, setMounted] = useState(false);
+  const DEFAULT_WORKSPACE_ID = "92a3fcd6-ec3c-4467-b5bf-73c15320c29f";
+  const DEFAULT_NOTEBOOK_ID = "0eb2fa05-b049-43c2-bf72-46ccbd6c903e";
+
   const { data: notebooks = [], isLoading: isLoadingNotebooks } = useQuery({
-    queryKey: ['notebooks'],
-    queryFn: fetchNotebooks,
+    queryKey: ['notebooks', DEFAULT_WORKSPACE_ID],
+    queryFn: () => fetchNotebooks(DEFAULT_WORKSPACE_ID),
   });
 
   const { data: documents = [], isLoading: isLoadingDocuments } = useQuery({
-    queryKey: ['documents'],
-    queryFn: () => fetchDocuments(),
+    queryKey: ['documents', DEFAULT_NOTEBOOK_ID],
+    queryFn: () => fetchDocuments(DEFAULT_NOTEBOOK_ID),
   });
 
   useEffect(() => {

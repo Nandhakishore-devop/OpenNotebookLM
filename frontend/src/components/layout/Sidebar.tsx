@@ -23,7 +23,7 @@ export function Sidebar() {
   const links = [
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
     { name: "Workspace", href: "/workspace", icon: FileEdit },
-    { name: "Documents", href: "/documents", icon: Files },
+    { name: "Documents", href: "/workspace", icon: Files },
     { name: "AI Chat", href: "/chat", icon: MessageSquare },
     { name: "Podcast Studio", href: "/podcast", icon: Mic },
     { name: "Knowledge Graph", href: "/graph", icon: Network },
@@ -42,10 +42,12 @@ export function Sidebar() {
         </p>
       </div>
 
-      <AnimatedButton variant="primary" className="w-full mb-8" size="md">
-        <Plus className="w-5 h-5" />
-        New Notebook
-      </AnimatedButton>
+      <Link href="/workspace" className="w-full mb-8 block">
+        <AnimatedButton variant="primary" className="w-full" size="md">
+          <Plus className="w-5 h-5" />
+          New Notebook
+        </AnimatedButton>
+      </Link>
 
       <nav className="flex-1 space-y-1.5 overflow-y-auto no-scrollbar">
         {links.map((link) => {
